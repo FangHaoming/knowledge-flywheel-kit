@@ -9,7 +9,8 @@ A 保存通用方法、安装/升级程序和模板。B 保存自己的业务经
 将 A 克隆到本机。在 B 的根目录运行一次（将 A 的路径换成实际克隆目录）：
 
 ```sh
-node /absolute/path/to/A/bin/knowledge-flywheel.cjs init --project /absolute/path/to/B
+cd /absolute/path/to/A
+npm run init -- --project /absolute/path/to/B
 ```
 
 初始化完成后，请将 B 中生成或修改的 `AGENTS.md`、`.cursor/skills/knowledge-flywheel/`、`.cursor/rules/knowledge-flywheel.mdc`、`.agents/skills/knowledge-flywheel`、`docs/knowledge/` 和 `.knowledge-flywheel/state.json` 按项目约定提交到 B。团队成员拉取 B 后，Codex/Cursor 会通过项目指令自动读取知识飞轮；日常需求不需要再手动执行 A 的命令。
@@ -17,7 +18,8 @@ node /absolute/path/to/A/bin/knowledge-flywheel.cjs init --project /absolute/pat
 如果希望首次初始化并立即检索当前需求，也可以从任何位置显式指定 B：
 
 ```sh
-node /absolute/path/to/A/bin/knowledge-flywheel.cjs use --project /absolute/path/to/B --task '调整参数提交逻辑'
+cd /absolute/path/to/A
+npm run use -- --project /absolute/path/to/B --task '调整参数提交逻辑'
 ```
 
 运行时仅需 Node 16+ 和 Git，无第三方运行依赖、不需要 npm install。B 必须是 Git 仓库；A 和 B 不能是同一仓库。
@@ -62,13 +64,13 @@ ln -s /absolute/path/to/A ~/.agents/skills/knowledge-flywheel-kit
 以下命令只用于首次接入、排查或升级方法版本，不需要在每次 B 需求前执行：
 
 ```sh
-node bin/knowledge-flywheel.cjs init --project /absolute/path/to/B --dry-run
-node bin/knowledge-flywheel.cjs init --project /absolute/path/to/B
-node bin/knowledge-flywheel.cjs status --project /absolute/path/to/B --check
+npm run init -- --project /absolute/path/to/B --dry-run
+npm run init -- --project /absolute/path/to/B
+npm run status -- --project /absolute/path/to/B --check
 
 # 团队先把 A 切换/拉取到确定的方法版本，再显式同步 B
-node bin/knowledge-flywheel.cjs update --project /absolute/path/to/B --dry-run
-node bin/knowledge-flywheel.cjs update --project /absolute/path/to/B
+npm run update -- --project /absolute/path/to/B --dry-run
+npm run update -- --project /absolute/path/to/B
 ```
 
 重复 init 不插入重复区块、不生成无意义备份、不更新无变化的时间戳。`--dry-run` 和 status 不写文件。B 的日常任务沿用已提交的方法版本，不在普通需求中自动跟随 A 最新 HEAD；需要升级时再由维护者执行 update。

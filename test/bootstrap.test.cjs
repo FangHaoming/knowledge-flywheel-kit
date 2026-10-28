@@ -154,7 +154,7 @@ try {
     assert.throws(() => kit.apply(b, { command: 'init' }, a2), /use update/)
     assert.strictEqual(kit.status(b, a2).update_available, true)
     // use keeps the installed version pinned until an explicit update.
-    assert.strictEqual(kit.use(b, { task: '未命中业务词' }, a2).method.version, '1.0.1')
+    assert.strictEqual(kit.use(b, { task: '未命中业务词' }, a2).method.version, '1.0.2')
     kit.apply(b, { command: 'update' }, a2)
     assert.strictEqual(kit.loadState(b).version, '1.1.0')
     assert(read(b, 'docs/knowledge/WORKFLOW.md').includes('Updated generic workflow.'))

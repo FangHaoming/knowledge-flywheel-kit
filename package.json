@@ -1,11 +1,15 @@
 {
   "name": "knowledge-flywheel-kit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Bootstrap and maintain project-local AI knowledge workflows from a standalone source repository.",
   "bin": { "knowledge-flywheel": "bin/knowledge-flywheel.cjs" },
   "engines": { "node": ">=16" },
   "scripts": {
-    "test": "node test/bootstrap.test.cjs && node test/knowledge.test.cjs"
+    "test": "node test/bootstrap.test.cjs && node test/knowledge.test.cjs",
+    "init": "node bin/knowledge-flywheel.cjs init",
+    "use": "node bin/knowledge-flywheel.cjs use",
+    "update": "node bin/knowledge-flywheel.cjs update",
+    "status": "node bin/knowledge-flywheel.cjs status"
   }
 }
