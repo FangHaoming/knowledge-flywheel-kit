@@ -85,7 +85,6 @@ A：knowledge-flywheel-kit（独立 Git 仓库）
   bin/knowledge-flywheel.cjs   use / init / update / status
   lib/bootstrap.cjs           合并、版本、冲突与事务
   templates/                  通用 Skill、Rule、文档和入口片段
-  migrations/                 已知旧版的精确指纹
   test/                       隔离业务仓库集成测试
 
 B：任意业务 Git 仓库
@@ -98,17 +97,6 @@ B：任意业务 Git 仓库
 ```
 
 代码复制到 B 是为了让团队拉取 B 后可直接工作，不要求每台机器上有同一位置的 A。通用副本由 state 跟踪升级；知识与方法版本分开管理。
-
-## 旧版单项目安装迁移
-
-此前无 state.json 的安装，默认不会被当成 A 管理的内容。核对确为本工具旧版后可使用：
-
-```sh
-node bin/knowledge-flywheel.cjs init --project /absolute/path/to/B --adopt-legacy --dry-run
-node bin/knowledge-flywheel.cjs init --project /absolute/path/to/B --adopt-legacy
-```
-
-该模式只接管 migrations 中精确匹配的旧文件，合并已知旧 AGENTS 段落。即使带此选项，改过的未知文件仍然报冲突。项目卡片不会被迁移器刷新或重写；若入口变化使卡片的 AGENTS 文件指纹过期，由正常知识复核流程确认并更新，不能绕过复核。
 
 ## 测试与维护
 

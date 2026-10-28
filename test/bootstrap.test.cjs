@@ -31,7 +31,7 @@ function test(name, action) { action(); count += 1; console.log(`PASS ${name}`) 
 function cloneSource() {
   const source = path.join(temporary, `source-${++sequence}`)
   fs.mkdirSync(source)
-  for (const rel of ['package.json', 'templates', 'migrations']) fs.cpSync(path.join(ROOT, rel), path.join(source, rel), { recursive: true })
+  for (const rel of ['package.json', 'templates']) fs.cpSync(path.join(ROOT, rel), path.join(source, rel), { recursive: true })
   return source
 }
 
@@ -219,26 +219,6 @@ try {
     const moved = path.join(temporary, `moved-${++sequence}`)
     fs.renameSync(b, moved)
     assert.strictEqual(ok(moved, ['status', '--check']).drift.length, 0)
-  })
-  test('known legacy install requires explicit adoption and exact fingerprints', () => {
-    const source = cloneSource()
-    const b = repo('legacy')
-    write(b, 'AGENTS.md', '# User instructions\n\n' + read(source, 'migrations/legacy-agents.md'))
-    write(b, '.cursor/rules/knowledge-flywheel.mdc', 'known legacy rule')
-    const legacy = JSON.parse(read(source, 'migrations/legacy-v0.json'))
-    legacy['.cursor/rules/knowledge-flywheel.mdc'] = kit.hash('known legacy rule')
-    write(source, 'migrations/legacy-v0.json', JSON.stringify(legacy))
-    assert.throws(() => kit.apply(b, { command: 'init' }, source), /conflict|adopt-legacy/)
-    write(b, 'docs/knowledge/cards/my-lesson.json', 'preserve my lesson')
-    kit.apply(b, { command: 'init', adoptLegacy: true }, source)
-    const agents = read(b, 'AGENTS.md')
-    assert(agents.startsWith('# User instructions'))
-    assert(!agents.includes('## AI Development Knowledge'))
-    assert(agents.includes(kit.BEGIN))
-    assert.strictEqual(read(b, 'docs/knowledge/cards/my-lesson.json'), 'preserve my lesson')
-    const altered = repo('legacy-altered')
-    write(altered, '.cursor/rules/knowledge-flywheel.mdc', 'edited legacy rule')
-    assert.throws(() => kit.apply(altered, { command: 'init', adoptLegacy: true }, source), /conflict/)
   })
   test('A and separate B repositories never share project cards automatically', () => {
     const b = repo('B-one')

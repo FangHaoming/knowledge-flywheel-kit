@@ -1,8 +1,0 @@
-{
-  ".cursor/rules/knowledge-flywheel.mdc": "3ccb5dd1049aa8714a8360e68886eb1473546626cf53377ffdcac065894c11e1",
-  ".cursor/skills/knowledge-flywheel/SKILL.md": "3a1020d13453b558349fc508d68f353b660f091b793033d46e349e659355dc4b",
-  ".cursor/skills/knowledge-flywheel/references/data-contract.md": "32f7f3455a5b4a29fee1f68dc9b1bc765f309f907fae1ea288d5c296514cbded",
-  ".cursor/skills/knowledge-flywheel/agents/openai.yaml": "2af12852091e36b0a511dc8718440bd0f670b7eb4ec02992de680ac45b9b9911",
-  ".cursor/skills/knowledge-flywheel/scripts/knowledge.cjs": "d7901675ff1d4ed7a6142aaa743687eb84de46d9bb7dc9c16ef90440c20655fc",
-  ".cursor/skills/knowledge-flywheel/scripts/knowledge.test.cjs": "9aaec59c4f7319d44b2b3253fec50d5a7d5165e0d8817cdd63d82feb45125ae7"
-}
