@@ -1,6 +1,6 @@
 ## AI knowledge workflow
 
-- For project requirements, fixes and refactoring, read `.cursor/skills/knowledge-flywheel/SKILL.md` alongside the current workflow.
+- After this project is initialized, automatically use `.cursor/skills/knowledge-flywheel/SKILL.md` for project requirements, fixes and refactoring; do not require a manual A command for each task. Read it alongside the current workflow.
 - At task start and meaningful scope changes, recall relevant project experience using the task and known paths; briefly report the IDs actually adopted. Do not repeat a node already handled in this task.
 - During work, capture reusable user corrections and confirmed root causes as candidates. One-off requirements stay in the current task record; personal preferences do not become team rules.
 - After verification, before delivery or handoff, distill supported conclusions and report knowledge changes. No reusable insight means no new card.

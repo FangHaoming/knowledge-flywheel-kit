@@ -4,7 +4,7 @@
 
 ## 日常使用
 
-在本项目的新 Codex/Cursor Agent 会话中正常提出需求。根 AGENTS 与 Cursor Rule 引导同一个项目 Skill。首次验证可明确说：
+在本项目的新 Codex/Cursor Agent 会话中正常提出需求。根 AGENTS 与 Cursor Rule 会自动引导同一个项目 Skill；完成首次初始化并把受管文件提交到 B 后，日常需求不需要手动运行 A 的命令。首次验证可明确说：
 
 > 使用 knowledge-flywheel 处理本需求：先加载相关项目经验，过程中记录可复用纠正，验证后整理结论。先只分析，不修改业务代码。
 
