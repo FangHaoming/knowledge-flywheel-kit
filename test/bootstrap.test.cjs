@@ -44,6 +44,7 @@ try {
     assert.strictEqual(result.method.installed, true)
     assert.deepStrictEqual(result.knowledge.active, [])
     assert(exists(b, '.cursor/skills/knowledge-flywheel/SKILL.md'))
+    assert(!exists(b, '.cursor/skills/knowledge-flywheel/scripts/knowledge.test.cjs'))
     assert(exists(b, '.cursor/rules/knowledge-flywheel.mdc'))
     assert(exists(b, 'docs/knowledge/cards/.gitkeep'))
     assert(fs.realpathSync(path.join(b, kit.ALIAS)) === fs.realpathSync(path.join(b, kit.CANONICAL)))

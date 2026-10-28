@@ -6,6 +6,6 @@
   "bin": { "knowledge-flywheel": "bin/knowledge-flywheel.cjs" },
   "engines": { "node": ">=16" },
   "scripts": {
-    "test": "node test/bootstrap.test.cjs && node templates/skill/scripts/knowledge.test.cjs"
+    "test": "node test/bootstrap.test.cjs && node test/knowledge.test.cjs"
   }
 }
