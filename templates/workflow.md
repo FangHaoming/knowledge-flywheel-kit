@@ -1,10 +1,10 @@
 # 业务仓库中的知识飞轮
 
-本文件由独立方法仓库 A 管理。业务经验保留在当前项目 B，不跨项目自动复制。
+本文件由独立方法仓库 `knowledge-flywheel-kit` 管理。业务经验保留在当前项目 B，不跨项目自动复制。
 
 ## 日常使用
 
-在本项目的新 Codex/Cursor Agent 会话中正常提出需求。根 AGENTS 与 Cursor Rule 会自动引导同一个项目 Skill；完成首次初始化并把受管文件提交到 B 后，日常需求不需要手动运行 A 的命令。首次验证可明确说：
+在本项目的新 Codex/Cursor Agent 会话中正常提出需求。根 AGENTS 与 Cursor Rule 会自动引导同一个项目 Skill；完成首次初始化并把受管文件提交到 B 后，日常需求不需要手动运行 `knowledge-flywheel-kit` 的命令。首次验证可明确说：
 
 > 使用 knowledge-flywheel 处理本需求：先加载相关项目经验，过程中记录可复用纠正，验证后整理结论。先只分析，不修改业务代码。
 
@@ -18,7 +18,7 @@
 - `docs/knowledge/README.md`：本项目自行维护的说明；方法升级不覆盖。
 - `.knowledge-flywheel/state.json`：已安装的通用方法版本和受管文件指纹，应提交到项目。
 - `.knowledge-flywheel/backups/`：初始化/升级的本地备份，由该目录的 .gitignore 排除。
-- 通用 Skill 和 Cursor Rule 来自 A，项目约定写在 AGENTS 的受管标记区块之外，避免升级冲突。
+- 通用 Skill 和 Cursor Rule 来自 `knowledge-flywheel-kit`，项目约定写在 AGENTS 的受管标记区块之外，避免升级冲突。
 
 ## 工具命令
 
@@ -34,13 +34,14 @@ node .cursor/skills/knowledge-flywheel/scripts/knowledge.cjs check
 
 ## 方法升级
 
-拉取或切换 A 到团队确定的版本后，从 A 执行：
+拉取或切换 `knowledge-flywheel-kit` 到团队确定的版本后，从该仓库执行：
 
 ```sh
-node bin/knowledge-flywheel.cjs update --project /absolute/path/to/B --dry-run
-node bin/knowledge-flywheel.cjs update --project /absolute/path/to/B
+PROJECT_B=/path/to/B
+npm run update -- --project "$PROJECT_B" --dry-run
+npm run update -- --project "$PROJECT_B"
 ```
 
-安装器保留 AGENTS 非受管文本和本项目知识，受管文件发生本地修改时报告冲突。不要用强制覆盖解决；将项目差异移入项目约定、与 A 合并方法改动后再升级。A 不需要常驻；安装后 B 的日常流程可离线独立运行。
+安装器保留 AGENTS 非受管文本和本项目知识，受管文件发生本地修改时报告冲突。不要用强制覆盖解决；将项目差异移入项目约定、与 `knowledge-flywheel-kit` 合并方法改动后再升级。`knowledge-flywheel-kit` 不需要常驻；安装后 B 的日常流程可离线独立运行。
 
 文件写入成功不代表客户端已加载。旧会话需要显式读取新指令或新建会话；真正的 Codex/Cursor UI 自动加载需在实际客户端验收。
