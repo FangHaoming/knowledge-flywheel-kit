@@ -1,0 +1,4 @@
+interface:
+  display_name: "知识飞轮接入器"
+  short_description: "从独立方法仓库为业务项目初始化或升级共享的 AI 知识流程，并保留原有项目指令和经验"
+  default_prompt: "使用 $knowledge-flywheel-kit 将当前业务项目接入知识飞轮，首次自动初始化，再继续本次需求。"

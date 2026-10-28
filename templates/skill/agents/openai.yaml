@@ -1,0 +1,4 @@
+interface:
+  display_name: "项目知识飞轮"
+  short_description: "在 AI 开发需求时检索已有经验、及时记录纠正，并将验证后的结论沉淀给团队复用"
+  default_prompt: "使用 $knowledge-flywheel 开发本次需求，先加载相关项目经验，过程中记录纠正，完成后整理可复用结论。"

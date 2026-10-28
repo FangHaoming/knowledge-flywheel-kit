@@ -1,0 +1,8 @@
+---
+description: AI 需求过程中加载项目经验、记录纠正、验证后沉淀的共享方法
+alwaysApply: true
+---
+
+处理本项目需求、缺陷或重构时，读取 `.cursor/skills/knowledge-flywheel/SKILL.md`：开始前检索项目经验，收到可复用纠正时记录候选，验证后整理知识。普通问答不创建卡片。
+
+与根 AGENTS 的知识流程是同一套；同一任务已执行过的节点不要重复。沿用当前需求授权与 Spec，不新增审批。本规则由独立方法仓库 A 管理，项目业务知识保留在 B 的 `docs/knowledge/cards/`。
