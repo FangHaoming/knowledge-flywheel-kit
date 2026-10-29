@@ -2,7 +2,7 @@
 
 独立 Git 仓库 A，为业务 Git 仓库 B 首次初始化 AI 知识飞轮。
 
-A 保存通用方法、安装/升级程序和模板。B 保存自己的业务经验。一次接入后，Codex、Cursor 在 B 做需求时加载已有经验、记录纠正、验证后沉淀；B 的日常工作不依赖 A 常驻或联网。
+A 保存通用方法、安装/升级程序和模板。B 保存自己的业务经验。一次接入后，Codex、Cursor 在 B 做需求时加载已有经验，在对话中识别可能值得复用的经验，并在获得用户明确授权后写入；B 的日常工作不依赖 A 常驻或联网。
 
 ## 最快开始：只在 B 首次接入时执行一次
 
@@ -21,6 +21,8 @@ npm run init -- --project /absolute/path/to/B
 cd /absolute/path/to/A
 npm run use -- --project /absolute/path/to/B --task '调整参数提交逻辑'
 ```
+
+`use` 会初始化尚未接入的 B 并确认方法入口可用。随后由当前 AI 使用项目已有的仓库搜索和文件阅读工具，在知识卡目录中主动寻找相关经验；A 不输出卡片目录或相关性结果。
 
 运行时仅需 Node 16+ 和 Git，无第三方运行依赖、不需要 npm install。B 必须是 Git 仓库；A 和 B 不能是同一仓库。
 
@@ -54,7 +56,7 @@ ln -s /absolute/path/to/A ~/.agents/skills/knowledge-flywheel-kit
 - **Codex 发现入口**：已有 `.agents/skills` 指向 `.cursor/skills` 时直接复用；独立目录则创建指向同一份 Skill 的相对目录链接，不覆盖同名自定义 Skill。
 - **Cursor Rule**：创建 `.cursor/rules/knowledge-flywheel.mdc`，指向同一项目 Skill。
 - **本项目知识目录**：创建 `docs/knowledge/cards/`，从空库开始，不导入其他项目业务数据。
-- **说明文档**：通用说明为 `docs/knowledge/WORKFLOW.md`；项目自己的 README 只在不存在时创建，后续不覆盖。
+- **说明文档**：通用说明为 `docs/knowledge/WORKFLOW.md`；项目知识目录 README `docs/knowledge/README.md` 只在不存在时创建，后续不覆盖。
 - **版本状态**：在 `.knowledge-flywheel/state.json` 记录已安装版本、受管文件指纹和发现入口；使用相对路径，B 移动或被他人克隆后仍可用。
 
 过程不修改 B 的 package.json、CI、全局配置或 Git remote，不自动 commit/push。冲突在写入前检查；事务中途失败会回滚已经写入且未被并发修改的文件。本地备份保存在 `.knowledge-flywheel/backups/`，由局部 .gitignore 排除。
@@ -108,4 +110,4 @@ npm test
 
 初始化/升级测试使用独立临时 Git 仓库；运行时知识工具测试也在临时仓库中验证候选隔离、来源变化和并发保护。不会用真实项目做破坏性测试。
 
-真实 Codex/Cursor 会话的自动加载需要客户端验收。一次简单的验收是：在 B 中要求 AI 按知识飞轮分析需求，并确认它读取项目 Skill、运行 recall；再保存一次真实纠正，换工具检索同一经验。
+AI 在需求开始时使用项目的仓库搜索能力寻找候选卡片，并阅读相关全文；脚本不枚举或筛选经验。真实 Codex/Cursor 会话的自动加载需要客户端验收。一次简单的验收是：确认 AI 读取项目 Skill、主动搜索卡片并核对相关经验；再授权保存一次真实经验，换工具确认卡片可读。

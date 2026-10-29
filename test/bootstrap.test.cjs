@@ -36,13 +36,13 @@ function cloneSource() {
 }
 
 try {
-  test('first use automatically initializes B and recalls only its local knowledge', () => {
+  test('first use automatically initializes B without enumerating its cards', () => {
     const b = repo('first use with spaces')
     write(b, 'AGENTS.md', '# Project B\n\nKeep existing behavior.\n')
     const result = ok(b, ['use', '--task', '实现一个新需求'])
     assert(result.initialization.changed.length > 0)
     assert.strictEqual(result.method.installed, true)
-    assert.deepStrictEqual(result.knowledge.active, [])
+    assert(!('knowledge' in result))
     assert(exists(b, '.cursor/skills/knowledge-flywheel/SKILL.md'))
     assert(!exists(b, '.cursor/skills/knowledge-flywheel/scripts/knowledge.test.cjs'))
     assert(exists(b, '.cursor/rules/knowledge-flywheel.mdc'))
@@ -149,14 +149,15 @@ try {
     const localCard = JSON.stringify({ schema_version: 1, id: 'local', title: 'Project B only', status: 'candidate', scope: { paths: [], keywords: ['only-b'] }, trigger: 'B only', lesson: 'B conclusion', reason: 'B reason', boundaries: 'B scope', evidence: [{ kind: 'user-correction', note: 'B user confirmed' }], validation: [] })
     write(b, 'docs/knowledge/cards/local.json', localCard)
     const a2 = cloneSource()
-    const pkg = JSON.parse(read(a2, 'package.json')); pkg.version = '1.1.0'; write(a2, 'package.json', JSON.stringify(pkg))
+    const initialVersion = JSON.parse(read(a2, 'package.json')).version
+    const pkg = JSON.parse(read(a2, 'package.json')); pkg.version = '9.9.9'; write(a2, 'package.json', JSON.stringify(pkg))
     fs.appendFileSync(path.join(a2, 'templates/workflow.md'), '\nUpdated generic workflow.\n')
     assert.throws(() => kit.apply(b, { command: 'init' }, a2), /use update/)
     assert.strictEqual(kit.status(b, a2).update_available, true)
     // use keeps the installed version pinned until an explicit update.
-    assert.strictEqual(kit.use(b, { task: '未命中业务词' }, a2).method.version, '1.0.2')
+    assert.strictEqual(kit.use(b, { task: '未命中业务词' }, a2).method.version, initialVersion)
     kit.apply(b, { command: 'update' }, a2)
-    assert.strictEqual(kit.loadState(b).version, '1.1.0')
+    assert.strictEqual(kit.loadState(b).version, '9.9.9')
     assert(read(b, 'docs/knowledge/WORKFLOW.md').includes('Updated generic workflow.'))
     assert.strictEqual(read(b, 'docs/knowledge/cards/local.json'), localCard)
     assert.deepStrictEqual(kit.apply(b, { command: 'update' }, a2).changed, [])

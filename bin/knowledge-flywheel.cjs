@@ -34,7 +34,7 @@ function parse(argv) {
 try {
   const { command, options } = parse(process.argv.slice(2))
   if (!command || command === 'help' || command === '--help' || options.help) {
-    console.log('knowledge-flywheel-kit (A → B)\n\nuse [--project B] --task TEXT [--path RELATIVE_FILE]\n  First use initializes B, then recalls B\'s own knowledge.\ninit [--project B] [--dry-run]\nupdate [--project B] [--dry-run]\nstatus [--project B] [--check]\n\nProject defaults to the Git root of the current directory. No network or model API required.')
+    console.log('knowledge-flywheel-kit (A → B)\n\nuse [--project B] --task TEXT [--path RELATIVE_FILE]\n  First use initializes B; the current AI then searches B\'s cards with its normal repository tools.\ninit [--project B] [--dry-run]\nupdate [--project B] [--dry-run]\nstatus [--project B] [--check]\n\nProject defaults to the Git root of the current directory. No network or model API required.')
   } else {
     const root = bootstrap.projectRoot(options.project)
     let result

@@ -157,88 +157,11 @@ function write(root, card, expected) {
   }
 }
 
-function globMatches(pattern, value) {
-  let expression = ''
-  for (let index = 0; index < pattern.length; index += 1) {
-    const char = pattern[index]
-    if (char === '*' && pattern[index + 1] === '*') {
-      index += 1
-      if (pattern[index + 1] === '/') { index += 1; expression += '(?:.*/)?' } else expression += '.*'
-    } else if (char === '*') expression += '[^/]*'
-    else if (char === '?') expression += '[^/]'
-    else expression += char.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-  }
-  return new RegExp(`^${expression}$`, 'i').test(value)
-}
-
-function keywordMatches(keyword, task) {
-  const term = keyword.toLocaleLowerCase()
-  const content = task.toLocaleLowerCase()
-  if (/^[a-z0-9_-]+$/.test(term)) {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`, 'i').test(content)
-  }
-  return content.includes(term)
-}
-
-function recall(root, options) {
-  const task = options.task || ''
-  const paths = options.path || []
-  paths.forEach((item) => relative(item))
-  if (!nonempty(task) && !paths.length) fail('recall 需要 --task 或 --path；不会全量注入知识库')
-  const limit = options.limit === undefined ? 4 : Number(options.limit)
-  if (!Number.isInteger(limit) || limit < 1 || limit > 10) fail('--limit 必须为 1 到 10')
-  const matches = load(root).filter(({ card }) => card.status !== 'retired').map((entry) => {
-    const keywords = entry.card.scope.keywords.filter((keyword) => keywordMatches(keyword, task))
-    const matchedPaths = paths.filter((file) => entry.card.scope.paths.some((pattern) => globMatches(pattern, file)))
-    return { ...entry, score: keywords.length * 2 + matchedPaths.length * 5, matched: { keywords, paths: matchedPaths } }
-  }).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score || a.card.id.localeCompare(b.card.id))
-  const usable = []
-  const needsReview = []
-  const candidates = []
-  for (const entry of matches) {
-    const warnings = inspect(root, entry.card)
-    const result = { id: entry.card.id, title: entry.card.title, path: `${DIRECTORY}/${entry.card.id}.json`, etag: entry.etag, matched: entry.matched }
-    if (entry.card.status === 'candidate') candidates.push({ ...result, warnings })
-    else if (entry.card.status === 'review_required' || warnings.length) needsReview.push({ ...result, warnings })
-    else usable.push({ ...result, card: entry.card })
-  }
-  // A replacement declaration is a relationship, not permission to hide old rules.
-  const related = matches.flatMap(({ card }) => (card.supersedes || []).map((id) => ({ replacement: card.id, previous: id })))
-  const active = []
-  const deferred = []
-  let characters = 0
-  for (const item of usable) {
-    const size = JSON.stringify(item).length
-    if (active.length < limit && characters + size <= 12000) { active.push(item); characters += size }
-    else deferred.push({ id: item.id, title: item.title, path: item.path })
-  }
-  return { active, needs_review: needsReview.slice(0, limit), candidates: candidates.slice(0, limit), related: related.slice(0, 10), deferred: deferred.slice(0, limit), omitted_active: deferred.length, omitted_needs_review: Math.max(0, needsReview.length - limit), omitted_candidates: Math.max(0, candidates.length - limit) }
-}
-
-function markdown(result) {
-  const lines = ['项目经验检索（证据上下文；不替代当前需求和仓库指令）', '']
-  for (const item of result.active) {
-    const card = item.card
-    lines.push(`### ${card.id} · ${card.title}`, `适用：${card.trigger}`, `结论：${card.lesson}`, `原因：${card.reason}`, `边界：${card.boundaries}`)
-    lines.push(`证据：${card.evidence.map((entry) => `${entry.path || '用户明确纠正'} — ${entry.note}`).join('；')}`)
-    lines.push(`历史验证记录（不代表本次已执行）：${card.validation.map((entry) => `${entry.kind}/${entry.result} @ ${entry.at || '未执行'}：${entry.detail}`).join('；')}`, `卡片：${item.path}`, '')
-  }
-  if (!result.active.length) lines.push('无可直接采用的相关知识；正常分析当前代码。', '')
-  for (const item of result.needs_review) lines.push(`待复核：${item.id}（${item.path}）${item.warnings.join('；') || '已由反馈标记，读取卡片中的 history 原因'}；核对当前证据后使用。`)
-  for (const item of result.candidates) lines.push(`候选：${item.id}（${item.path}）仅作调查线索，不作为已确认约束。`)
-  for (const item of result.deferred) lines.push(`未展开：${item.id}（${item.path}）可按需读取完整卡片。`)
-  for (const item of result.related) lines.push(`替代关系待核对：${item.replacement} → ${item.previous}；不自动选择胜者或停用旧卡片。`)
-  if (result.omitted_active) lines.push(`另有 ${result.omitted_active} 条有效匹配未展开，可按路径缩小检索或调整 --limit。`)
-  if (result.omitted_needs_review || result.omitted_candidates) lines.push(`另有 ${result.omitted_needs_review} 条待复核、${result.omitted_candidates} 条候选未展开；可细化任务关键词/路径或调整 --limit。`)
-  return lines.join('\n')
-}
-
 function parse(argv) {
   const command = argv.shift()
   const options = {}
   const flags = new Set(['json', 'strict', 'help'])
-  const known = new Set(['repo', 'task', 'path', 'limit', 'input', 'expected', 'id', 'status', 'kind', 'basis', 'json', 'strict', 'help'])
+  const known = new Set(['repo', 'input', 'expected', 'id', 'status', 'kind', 'basis', 'json', 'strict', 'help'])
   while (argv.length) {
     const key = argv.shift()
     if (!key.startsWith('--') || !known.has(key.slice(2))) fail(`未知参数: ${key}`)
@@ -253,7 +176,6 @@ function parse(argv) {
     }
   }
   const allowed = {
-    recall: ['repo', 'task', 'path', 'limit', 'json', 'help'],
     capture: ['repo', 'input', 'expected', 'help'],
     review: ['repo', 'id', 'status', 'kind', 'basis', 'expected', 'help'],
     check: ['repo', 'strict', 'help'],
@@ -266,14 +188,11 @@ function parse(argv) {
 function main(argv = process.argv.slice(2)) {
   const { command, options } = parse([...argv])
   if (!command || command === 'help' || command === '--help' || options.help) {
-    console.log('knowledge.cjs <recall|capture|review|check> [--repo DIR]\nrecall --task TEXT [--path RELATIVE_FILE] [--limit 4] [--json]\ncapture --input JSON_FILE_OR_- [--expected ETAG]\nreview --id ID --status active|review_required|retired --basis TEXT [--kind user-confirmed|repository-rule|verified-fix] --expected ETAG\ncheck [--strict]\n无网络依赖；不会执行知识卡中的测试或其他命令。')
+    console.log('knowledge.cjs <capture|review|check> [--repo DIR]\ncapture --input JSON_FILE_OR_- [--expected ETAG]\nreview --id ID --status active|review_required|retired --basis TEXT [--kind user-confirmed|repository-rule|verified-fix] --expected ETAG\ncheck [--strict]\n无网络依赖；不会执行知识卡中的测试或其他命令。经验查找与相关性判断由当前 AI 使用仓库文件工具完成。')
     return
   }
   const root = rootFrom(options.repo)
-  if (command === 'recall') {
-    const result = recall(root, options)
-    console.log(options.json ? JSON.stringify(result, null, 2) : markdown(result))
-  } else if (command === 'capture') {
+  if (command === 'capture') {
     if (!options.input) fail('capture 需要 --input <JSON 文件或 ->')
     const raw = options.input === '-' ? fs.readFileSync(0, 'utf8') : fs.readFileSync(options.input, 'utf8')
     if (Buffer.byteLength(raw) > MAX_CARD_BYTES) fail('输入卡片过大')
@@ -325,4 +244,4 @@ function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   try { main() } catch (error) { console.error(`knowledge: ${error.message}`); process.exitCode = 1 }
 }
-module.exports = { validate, recall, inspect, snapshot, write, load, globMatches, keywordMatches, safePath, main }
+module.exports = { validate, inspect, snapshot, write, load, safePath, main }

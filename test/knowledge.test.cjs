@@ -6,11 +6,12 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { execFileSync, spawnSync } = require('child_process')
-const { globMatches, keywordMatches } = require('../templates/skill/scripts/knowledge.cjs')
 const cli = path.join(__dirname, '..', 'templates/skill/scripts/knowledge.cjs')
+const { load, inspect } = require('../templates/skill/scripts/knowledge.cjs')
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'knowledge-flywheel-test-'))
-const repo = path.join(root, 'repo')
-fs.mkdirSync(repo)
+const repoPath = path.join(root, 'repo')
+fs.mkdirSync(repoPath)
+const repo = fs.realpathSync(repoPath)
 execFileSync('git', ['init', repo], { stdio: 'ignore' })
 fs.mkdirSync(path.join(repo, 'src'))
 fs.writeFileSync(path.join(repo, 'src/rules.ts'), 'export const allowed = [4, 8]\n')
@@ -50,7 +51,16 @@ function activate(id) {
   const updated = capture(card, etag)
   return ok(['review', '--id', id, '--status', 'active', '--kind', 'repository-rule', '--basis', '已核对仓库现行规则及适用范围', '--expected', updated.etag])
 }
-function recall() { return ok(['recall', '--task', '修改克隆判断', '--json']) }
+// Test-only helper checks storage state; production instructions leave discovery to the AI.
+function recordsByStatus() {
+  const entries = load(repo).map(({ card, etag }) => ({ ...card, etag, warnings: inspect(repo, card) }))
+  return {
+    active: entries.filter((entry) => entry.status === 'active' && !entry.warnings.length),
+    needs_review: entries.filter((entry) => entry.status === 'review_required' || entry.warnings.length),
+    candidates: entries.filter((entry) => entry.status === 'candidate'),
+    related: entries.flatMap((entry) => (entry.supersedes || []).map((id) => ({ replacement: entry.id, previous: id }))),
+  }
+}
 function test(name, body) {
   body()
   count += 1
@@ -58,84 +68,80 @@ function test(name, body) {
 }
 
 try {
-  test('关键词支持中文与英文词边界，路径 ** 可匹配零层目录', () => {
-    assert(keywordMatches('克隆', '修改克隆判断'))
-    assert(keywordMatches('clone', 'fix clone request'))
-    assert(!keywordMatches('api', 'capital'))
-    assert(globMatches('src/**/*.ts', 'src/index.ts'))
-    assert(globMatches('src/**/*.ts', 'src/a/b/index.ts'))
-    assert(!globMatches('src/*.ts', 'src/a/index.ts'))
-  })
-  test('空知识库与未命中不生成数据', () => {
-    assert.strictEqual(recall().active.length, 0)
+  test('空知识目录不生成数据；脚本不提供目录枚举或相关性查找', () => {
+    assert.deepStrictEqual(load(repo), [])
     assert(!fs.existsSync(cards))
-    rejected(['recall'])
+    rejected(['catalog'])
+    rejected(['show', '--id', 'anything'])
+    rejected(['recall', '--task', 'anything'])
   })
   test('候选会记录证据指纹，但不会把未确认结论注入任务', () => {
     capture(candidate('clone-channel'))
-    const result = recall()
+    const result = recordsByStatus()
     assert.strictEqual(result.active.length, 0)
     assert.strictEqual(result.candidates[0].id, 'clone-channel')
-    assert(!run(['recall', '--task', '克隆']).stdout.includes('4 和 8 放行'))
+    const savedCard = JSON.parse(fs.readFileSync(file('clone-channel'), 'utf8'))
+    assert.strictEqual(savedCard.status, 'candidate')
+    assert.strictEqual(savedCard.lesson, '4 和 8 放行，7 拦截')
     assert.match(JSON.parse(fs.readFileSync(file('clone-channel'))).evidence[0].sha256, /^[a-f0-9]{64}$/)
   })
   test('无实际验证不能激活，也不执行存储命令', () => {
-    const current = recall().candidates[0]
+    const current = recordsByStatus().candidates[0]
     rejected(['review', '--id', current.id, '--status', 'active', '--kind', 'verified-fix', '--basis', '尚未验证', '--expected', current.etag])
-    assert.strictEqual(recall().active.length, 0)
+    assert.strictEqual(recordsByStatus().active.length, 0)
   })
-  test('复核后可由另一命令进程读取，recall 只读且区分历史验证', () => {
+  test('复核后的卡片可直接读取，内容保持只读并标明历史验证', () => {
     activate('clone-channel')
     const before = fs.readFileSync(file('clone-channel'), 'utf8')
-    assert.strictEqual(recall().active[0].id, 'clone-channel')
-    assert(run(['recall', '--task', '克隆']).stdout.includes('历史验证记录'))
+    assert.strictEqual(recordsByStatus().active[0].id, 'clone-channel')
+    assert(JSON.parse(fs.readFileSync(file('clone-channel'), 'utf8')).validation.some((item) => item.detail.includes('未运行业务测试')))
     assert.strictEqual(fs.readFileSync(file('clone-channel'), 'utf8'), before)
   })
   test('重复 ID 不覆盖，capture 不能重写 active 或绕过候选阶段', () => {
     const before = fs.readFileSync(file('clone-channel'), 'utf8')
     rejected(['capture', '--input', '-'], candidate('clone-channel'))
     rejected(['capture', '--input', '-'], candidate('sneaky-active', { status: 'active' }))
-    const active = recall().active[0]
+    const active = recordsByStatus().active[0]
     rejected(['capture', '--input', '-', '--expected', active.etag], candidate(active.id))
     assert.strictEqual(fs.readFileSync(file('clone-channel'), 'utf8'), before)
   })
   test('源文件变化只提示复核，不继续注入旧结论或静默改状态', () => {
     fs.writeFileSync(path.join(repo, 'src/rules.ts'), 'export const allowed = [4, 8, 9]\n')
-    const result = recall()
+    const result = recordsByStatus()
     assert.strictEqual(result.active.length, 0)
     assert(result.needs_review[0].warnings.some((warning) => warning.includes('内容变化')))
     assert.strictEqual(JSON.parse(fs.readFileSync(file('clone-channel'))).status, 'active')
     assert.strictEqual(run(['check']).status, 0)
     assert.notStrictEqual(run(['check', '--strict']).status, 0)
     fs.writeFileSync(path.join(repo, 'src/rules.ts'), 'export const allowed = [4, 8]\n')
-    assert.strictEqual(recall().active.length, 1)
+    assert.strictEqual(recordsByStatus().active.length, 1)
   })
   test('无关文件变化不使知识失效', () => {
     fs.writeFileSync(path.join(repo, 'src/unrelated.ts'), 'unrelated')
-    assert.strictEqual(recall().active.length, 1)
+    assert.strictEqual(recordsByStatus().active.length, 1)
   })
   test('新候选不能通过 supersedes 自动压过或退役现行规则', () => {
     capture(candidate('new-channel', { lesson: '另一条待确认的解释', supersedes: ['clone-channel'] }))
-    const result = recall()
+    const result = recordsByStatus()
     assert(result.active.some((item) => item.id === 'clone-channel'))
     assert(result.candidates.some((item) => item.id === 'new-channel'))
     assert.deepStrictEqual(result.related, [{ replacement: 'new-channel', previous: 'clone-channel' }])
   })
   test('候选更新需最新 etag，旧版本不会覆盖并发修改', () => {
-    const current = recall().candidates.find((item) => item.id === 'new-channel')
+    const current = recordsByStatus().candidates.find((item) => item.id === 'new-channel')
     const card = JSON.parse(fs.readFileSync(file(current.id)))
     const updated = capture({ ...card, lesson: '已经合并的新内容' }, current.etag)
     assert.notStrictEqual(updated.etag, current.etag)
     rejected(['capture', '--input', '-', '--expected', current.etag], { ...card, lesson: '过时写入' })
     assert.strictEqual(JSON.parse(fs.readFileSync(file(current.id))).lesson, '已经合并的新内容')
   })
-  test('显式反馈进入待复核；退役后不再召回', () => {
-    const current = recall().active[0]
+  test('显式反馈进入待复核；退役后不再作为现行知识', () => {
+    const current = recordsByStatus().active[0]
     const pending = ok(['review', '--id', current.id, '--status', 'review_required', '--basis', '发现协议矛盾', '--expected', current.etag])
-    assert.strictEqual(recall().active.length, 0)
-    assert(recall().needs_review.some((item) => item.id === current.id))
+    assert.strictEqual(recordsByStatus().active.length, 0)
+    assert(recordsByStatus().needs_review.some((item) => item.id === current.id))
     ok(['review', '--id', current.id, '--status', 'retired', '--basis', '已确认旧接口废弃', '--expected', pending.etag])
-    assert(!JSON.stringify(recall().needs_review).includes(current.id))
+    assert(!JSON.stringify(recordsByStatus().needs_review).includes(current.id))
   })
   test('超过有效期的 active 需要复核', () => {
     capture(candidate('expired-rule'))
@@ -143,12 +149,12 @@ try {
     const card = JSON.parse(fs.readFileSync(file('expired-rule')))
     card.valid_until = '2000-01-01T00:00:00.000Z'
     fs.writeFileSync(file(card.id), JSON.stringify(card))
-    assert(recall().needs_review.some((item) => item.id === card.id))
-    assert(!recall().active.some((item) => item.id === card.id))
+    assert(recordsByStatus().needs_review.some((item) => item.id === card.id))
+    assert(!recordsByStatus().active.some((item) => item.id === card.id))
   })
   test('没有文件的用户明确纠正可以留作候选，不伪造代码证据', () => {
     capture(candidate('user-correction', { evidence: [{ kind: 'user-correction', note: '用户确认：此来源仅限当前项目克隆入口' }] }))
-    assert(recall().candidates.some((item) => item.id === 'user-correction'))
+    assert(recordsByStatus().candidates.some((item) => item.id === 'user-correction'))
   })
   test('指向外部文件、路径穿越和恶意 ID 均拒绝', () => {
     fs.writeFileSync(path.join(root, 'outside.txt'), 'do not read')
@@ -164,30 +170,25 @@ try {
     capture(candidate('missing-later'))
     activate('missing-later')
     fs.renameSync(path.join(repo, 'src/rules.ts'), path.join(repo, 'src/renamed.ts'))
-    assert(recall().needs_review.some((item) => item.id === 'missing-later'))
+    assert(recordsByStatus().needs_review.some((item) => item.id === 'missing-later'))
     fs.renameSync(path.join(repo, 'src/renamed.ts'), path.join(repo, 'src/rules.ts'))
   })
-  test('检索数量和正文预算受限，大卡片保留完整读取入口', () => {
+  test('大卡片可作为普通仓库文件直接读取完整内容', () => {
     capture(candidate('large-card', { lesson: 'x'.repeat(14000) }))
     activate('large-card')
-    const result = recall()
-    assert(result.deferred.some((item) => item.id === 'large-card'))
-    assert(JSON.stringify(result.active).length < 12500)
-    const one = ok(['recall', '--task', '克隆', '--limit', '1', '--json'])
-    assert(one.active.length <= 1)
-    rejected(['recall', '--task', '克隆', '--limit', '0'])
+    assert.strictEqual(JSON.parse(fs.readFileSync(file('large-card'), 'utf8')).lesson.length, 14000)
   })
   test('本地写锁阻止两个进程覆盖同一卡片', () => {
-    const current = recall().active.find((item) => item.id === 'missing-later')
+    const current = recordsByStatus().active.find((item) => item.id === 'missing-later')
     fs.writeFileSync(`${file(current.id)}.lock`, '')
     rejected(['review', '--id', current.id, '--status', 'retired', '--basis', '模拟并发', '--expected', current.etag])
     fs.unlinkSync(`${file(current.id)}.lock`)
     assert.strictEqual(JSON.parse(fs.readFileSync(file(current.id))).status, 'active')
   })
-  test('从仓库子目录执行也找到同一份共享知识', () => {
-    const result = spawnSync(process.execPath, [cli, 'recall', '--task', '克隆', '--json'], { cwd: path.join(repo, 'src'), encoding: 'utf8' })
+  test('从仓库子目录运行检查仍能定位仓库知识目录', () => {
+    const result = spawnSync(process.execPath, [cli, 'check'], { cwd: path.join(repo, 'src'), encoding: 'utf8' })
     assert.strictEqual(result.status, 0, result.stderr)
-    assert(JSON.parse(result.stdout).active.some((item) => item.id === 'missing-later'))
+    assert(JSON.parse(result.stdout).cards > 0)
   })
   test('未定义参数与错误结构会显式失败', () => {
     rejected(['recall', '--task', '克隆', '--force'])
@@ -200,7 +201,7 @@ try {
     const saved = capture(card)
     ok(['review', '--id', saved.id, '--status', 'active', '--kind', 'verified-fix', '--basis', '隔离测试中的明确复核动作', '--expected', saved.etag])
     assert(!fs.existsSync(sentinel))
-    recall()
+    recordsByStatus()
     ok(['check'])
     assert(!fs.existsSync(sentinel))
   })
@@ -220,7 +221,8 @@ try {
     capture(candidate('reverify-rule', { scope: { paths: ['src/rules.ts'], keywords: ['重新验证来源'] } }))
     activate('reverify-rule')
     fs.appendFileSync(path.join(repo, 'src/rules.ts'), '// changed after previous verification\n')
-    const entry = ok(['recall', '--task', '重新验证来源', '--json']).needs_review[0]
+    const entry = recordsByStatus().needs_review.find((item) => item.id === 'reverify-rule')
+    assert(entry.warnings.length > 0)
     const args = ['review', '--id', entry.id, '--status', 'active', '--kind', 'repository-rule', '--basis', '重新核对当前源码']
     rejected([...args, '--expected', entry.etag])
     const card = JSON.parse(fs.readFileSync(file(entry.id)))
@@ -228,7 +230,7 @@ try {
     fs.writeFileSync(file(card.id), JSON.stringify(card))
     const etag = require('crypto').createHash('sha256').update(fs.readFileSync(file(card.id))).digest('hex')
     ok([...args, '--expected', etag])
-    assert(ok(['recall', '--task', '重新验证来源', '--json']).active.some((item) => item.id === card.id))
+    assert.strictEqual(recordsByStatus().active.find((item) => item.id === card.id).id, card.id)
   })
   console.log(`\n${count} integration scenarios passed; all files isolated in a temporary repository.`)
 } finally {
